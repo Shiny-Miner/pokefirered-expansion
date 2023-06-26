@@ -34,6 +34,7 @@
 #include "option_menu.h"
 #include "save_menu_util.h"
 #include "help_system.h"
+#include "quests.h"
 #include "constants/songs.h"
 #include "constants/field_weather.h"
 
@@ -48,6 +49,7 @@ enum StartMenuOption
     STARTMENU_EXIT,
     STARTMENU_RETIRE,
     STARTMENU_PLAYER2,
+    STARTMENU_QUESTMENU,
     MAX_STARTMENU_ITEMS
 };
 
@@ -87,6 +89,7 @@ static bool8 StartMenuOptionCallback(void);
 static bool8 StartMenuExitCallback(void);
 static bool8 StartMenuSafariZoneRetireCallback(void);
 static bool8 StartMenuLinkPlayerCallback(void);
+static bool8 QuestMenuCallback(void);
 static bool8 StartCB_Save1(void);
 static bool8 StartCB_Save2(void);
 static void StartMenu_PrepareForSave(void);
@@ -112,6 +115,9 @@ static void PrintSaveStats(void);
 static void CloseSaveStatsWindow(void);
 static void CloseStartMenu(void);
 
+static const u8 gText_QuestMenu[] = _("QUESTS");
+static const u8 gStartMenuDesc_Quests[] = _("Check active and completed QUESTS.");
+
 static const struct MenuAction sStartMenuActionTable[] = {
     { gText_MenuPokedex, {.u8_void = StartMenuPokedexCallback} },
     { gText_MenuPokemon, {.u8_void = StartMenuPokemonCallback} },
@@ -121,7 +127,8 @@ static const struct MenuAction sStartMenuActionTable[] = {
     { gText_MenuOption, {.u8_void = StartMenuOptionCallback} },
     { gText_MenuExit, {.u8_void = StartMenuExitCallback} },
     { gText_MenuRetire, {.u8_void = StartMenuSafariZoneRetireCallback} },
-    { gText_MenuPlayer, {.u8_void = StartMenuLinkPlayerCallback} }
+    { gText_MenuPlayer, {.u8_void = StartMenuLinkPlayerCallback} },
+    { gText_QuestMenu, {.u8_void = QuestMenuCallback} }
 };
 
 static const struct WindowTemplate sSafariZoneStatsWindowTemplate = {
@@ -143,7 +150,8 @@ static const u8 *const sStartMenuDescPointers[] = {
     gStartMenuDesc_Option,
     gStartMenuDesc_Exit,
     gStartMenuDesc_Retire,
-    gStartMenuDesc_Player
+    gStartMenuDesc_Player,
+    gStartMenuDesc_Quests
 };
 
 static const struct BgTemplate sBGTemplates_AfterLinkSaveMessage[] = {
@@ -212,6 +220,8 @@ static void SetUpStartMenu_NormalField(void)
     AppendToStartMenuItems(STARTMENU_PLAYER);
     AppendToStartMenuItems(STARTMENU_SAVE);
     AppendToStartMenuItems(STARTMENU_OPTION);
+    if (FlagGet(FLAG_SYS_QUEST_MENU_GET))
+        AppendToStartMenuItems(STARTMENU_QUESTMENU);
     AppendToStartMenuItems(STARTMENU_EXIT);
 }
 
@@ -223,6 +233,8 @@ static void SetUpStartMenu_SafariZone(void)
     AppendToStartMenuItems(STARTMENU_BAG);
     AppendToStartMenuItems(STARTMENU_PLAYER);
     AppendToStartMenuItems(STARTMENU_OPTION);
+    if (FlagGet(FLAG_SYS_QUEST_MENU_GET))
+        AppendToStartMenuItems(STARTMENU_QUESTMENU);
     AppendToStartMenuItems(STARTMENU_EXIT);
 }
 
@@ -870,7 +882,7 @@ bool32 DoSetUpSaveAfterLinkBattle(u8 *state)
         ResetBgsAndClearDma3BusyFlags(FALSE);
         InitBgsFromTemplates(0, sBGTemplates_AfterLinkSaveMessage, NELEMS(sBGTemplates_AfterLinkSaveMessage));
         InitWindows(sWindowTemplates_AfterLinkSaveMessage);
-        LoadStdWindowGfx(0, 0x008, 0xF0);
+        LoadStdWindowGfx(0, 0x008, BG_PLTT_ID(15));
         break;
     case 3:
         ShowBg(0);
@@ -910,7 +922,7 @@ static void task50_after_link_battle_save(u8 taskId)
         case 0:
             FillWindowPixelBuffer(0, PIXEL_FILL(1));
             AddTextPrinterParameterized2(0, FONT_NORMAL, gText_SavingDontTurnOffThePower2, 0xFF, NULL, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_WHITE, TEXT_COLOR_LIGHT_GRAY);
-            DrawTextBorderOuter(0, 0x008, 0x0F);
+            DrawTextBorderOuter(0, 0x008, 15);
             PutWindowTilemap(0);
             CopyWindowToVram(0, COPYWIN_FULL);
             BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
@@ -957,8 +969,8 @@ static void PrintSaveStats(void)
     u8 y;
     u8 x;
     sSaveStatsWindowId = AddWindow(&sSaveStatsWindowTemplate);
-    LoadStdWindowGfx(sSaveStatsWindowId, 0x21D, 0xD0);
-    DrawStdFrameWithCustomTileAndPalette(sSaveStatsWindowId, FALSE, 0x21D, 0x0D);
+    LoadStdWindowGfx(sSaveStatsWindowId, 0x21D, BG_PLTT_ID(13));
+    DrawStdFrameWithCustomTileAndPalette(sSaveStatsWindowId, FALSE, 0x21D, 13);
     SaveStatToString(SAVE_STAT_LOCATION, gStringVar4, 8);
     x = (u32)(112 - GetStringWidth(FONT_NORMAL, gStringVar4, -1)) / 2;
     AddTextPrinterParameterized3(sSaveStatsWindowId, FONT_NORMAL, x, 0, sTextColor_LocationHeader, -1, gStringVar4);
@@ -1002,4 +1014,10 @@ void AppendToList(u8 *list, u8 *cursor, u8 newEntry)
 {
     list[*cursor] = newEntry;
     (*cursor)++;
+}
+
+static bool8 QuestMenuCallback(void)
+{
+    CreateTask(Task_QuestMenu_OpenFromStartMenu, 0);
+    return TRUE;
 }

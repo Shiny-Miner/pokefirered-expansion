@@ -28,6 +28,7 @@
 #include "script.h"
 #include "berry_powder.h"
 #include "pokemon_jump.h"
+#include "quests.h"
 #include "event_scripts.h"
 
 // this file's functions
@@ -149,6 +150,7 @@ void NewGameInitData(void)
     RunScriptImmediately(EventScript_ResetAllMapFlags);
     StringCopy(gSaveBlock1Ptr->rivalName, rivalName);
     ResetTrainerTowerResults();
+    QuestMenu_ResetMenuSaveData();
 }
 
 static void ResetMiniGamesResults(void)
