@@ -81,7 +81,7 @@ static void ListMenuDummyTask(u8 taskId)
 {
 }
 
-u32 DoMysteryGiftListMenu(const struct WindowTemplate *windowTemplate, const struct ListMenuTemplate *listMenuTemplate, u8 arg2, u16 tileNum, u16 palNum)
+u32 DoMysteryGiftListMenu(const struct WindowTemplate *windowTemplate, const struct ListMenuTemplate *listMenuTemplate, u8 arg2, u16 tileNum, u16 palOffset)
 {
     switch (sMysteryGiftLinkMenu.state)
     {
@@ -91,9 +91,9 @@ u32 DoMysteryGiftListMenu(const struct WindowTemplate *windowTemplate, const str
         switch (arg2)
         {
         case 2:
-            LoadUserWindowGfx(sMysteryGiftLinkMenu.windowId, tileNum, palNum);
+            LoadUserWindowGfx(sMysteryGiftLinkMenu.windowId, tileNum, palOffset);
         case 1:
-            DrawTextBorderOuter(sMysteryGiftLinkMenu.windowId, tileNum, palNum / 16);
+            DrawTextBorderOuter(sMysteryGiftLinkMenu.windowId, tileNum, palOffset / 16);
             break;
         }
         gMultiuseListMenuTemplate = *listMenuTemplate;
@@ -167,6 +167,9 @@ s32 ListMenu_ProcessInput(u8 listTaskId)
 {
     struct ListMenu *list = (struct ListMenu *)gTasks[listTaskId].data;
 
+    s32 currentPosition = list->cursorPos + list->itemsAbove;
+    u8 lastPositon = list->template.totalItems - 1;
+
     if (JOY_NEW(A_BUTTON))
     {
         return list->template.items[list->cursorPos + list->itemsAbove].index;
@@ -177,12 +180,18 @@ s32 ListMenu_ProcessInput(u8 listTaskId)
     }
     else if (gMain.newAndRepeatedKeys & DPAD_UP)
     {
-        ListMenuChangeSelection(list, TRUE, 1, FALSE);
+        if (currentPosition == 0)
+            ListMenuChangeSelection(list,TRUE,lastPositon,TRUE);
+        else
+            ListMenuChangeSelection(list, TRUE, 1, FALSE);
         return LIST_NOTHING_CHOSEN;
     }
     else if (gMain.newAndRepeatedKeys & DPAD_DOWN)
     {
-        ListMenuChangeSelection(list, TRUE, 1, TRUE);
+        if (currentPosition == lastPositon)
+            ListMenuChangeSelection(list,TRUE,lastPositon, FALSE);
+        else
+            ListMenuChangeSelection(list, TRUE, 1, TRUE);
         return LIST_NOTHING_CHOSEN;
     }
     else // try to move by one window scroll
@@ -727,7 +736,7 @@ void ListMenuSetTemplateField(u8 taskId, u8 field, s32 value)
 
 void ListMenu_LoadMonIconPalette(u8 palOffset, u16 speciesId)
 {
-    LoadPalette(GetValidMonIconPalettePtr(speciesId), palOffset, 0x20);
+    LoadPalette(GetValidMonIconPalettePtr(speciesId), palOffset, PLTT_SIZE_4BPP);
 }
 
 void ListMenu_DrawMonIconGraphics(u8 windowId, u16 speciesId, u32 personality, u16 x, u16 y)
@@ -749,7 +758,7 @@ void ListMenuLoadStdPalAt(u8 palOffset, u8 palId)
         palette = gFireRedMenuElements2_Pal;
         break;
     }
-    LoadPalette(palette, palOffset, 0x20);
+    LoadPalette(palette, palOffset, PLTT_SIZE_4BPP);
 }
 
 void BlitMoveInfoIcon(u8 windowId, u8 iconId, u16 x, u16 y)

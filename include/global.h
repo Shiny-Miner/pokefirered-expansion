@@ -313,6 +313,9 @@ struct BattleTowerData // Leftover from R/S
     /*0x04D1, 0x0581*/ u8 filler_4D1[0x317];
 }; /* size = 0x7E8 */
 
+// quest menu
+#include "constants/quests.h"
+
 struct SaveBlock2
 {
     /*0x000*/ u8 playerName[PLAYER_NAME_LENGTH + 1];
@@ -343,8 +346,15 @@ struct SaveBlock2
     /*0xAF0*/ struct BerryCrush berryCrush;
     /*0xB00*/ struct PokemonJumpRecords pokeJump;
     /*0xB10*/ struct BerryPickingResults berryPick;
+    //RECOMMENDED TO REMOVE THIS
     /*0xB20*/ u8 filler_B20[0x400];
     /*0xF20*/ u32 encryptionKey;
+#define QUEST_FLAGS_COUNT ROUND_BITS_TO_BYTES(QUEST_COUNT)
+#define SUB_FLAGS_COUNT ROUND_BITS_TO_BYTES(SUB_QUEST_COUNT)
+#define QUEST_STATES 5 //Number of different quest states tracked in the saveblock
+    //May overflow
+    u8 questData[QUEST_FLAGS_COUNT * QUEST_STATES];
+    u8 subQuests[SUB_FLAGS_COUNT];
 }; // size: 0xF24
 
 extern struct SaveBlock2 *gSaveBlock2Ptr;

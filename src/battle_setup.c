@@ -497,7 +497,7 @@ u8 BattleSetup_GetTerrainId(void)
             return BATTLE_TERRAIN_WATER;
         return BATTLE_TERRAIN_PLAIN;
     }
-    if (MetatileBehavior_IsDeepSemiDeepOrSplashingWater(tileBehavior))
+    if (MetatileBehavior_IsDeepWaterTerrain(tileBehavior))
         return BATTLE_TERRAIN_WATER;
     if (MetatileBehavior_IsSurfable(tileBehavior))
         return BATTLE_TERRAIN_POND;
@@ -545,7 +545,7 @@ static u16 GetSumOfPlayerPartyLevel(u8 numMons)
 
     for (i = 0; i < PARTY_SIZE; ++i)
     {
-        u32 species = GetMonData(&gPlayerParty[i], MON_DATA_SPECIES2);
+        u32 species = GetMonData(&gPlayerParty[i], MON_DATA_SPECIES_OR_EGG);
 
         if (species != SPECIES_EGG && species != SPECIES_NONE && GetMonData(&gPlayerParty[i], MON_DATA_HP) != 0)
         {
