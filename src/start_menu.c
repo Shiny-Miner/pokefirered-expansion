@@ -36,6 +36,7 @@
 #include "help_system.h"
 #include "constants/songs.h"
 #include "constants/field_weather.h"
+#include "sloopsvc.h"
 
 enum StartMenuOption
 {
@@ -113,15 +114,15 @@ static void CloseSaveStatsWindow(void);
 static void CloseStartMenu(void);
 
 static const struct MenuAction sStartMenuActionTable[] = {
-    { gText_MenuPokedex, {.u8_void = StartMenuPokedexCallback} },
-    { gText_MenuPokemon, {.u8_void = StartMenuPokemonCallback} },
-    { gText_MenuBag, {.u8_void = StartMenuBagCallback} },
-    { gText_MenuPlayer, {.u8_void = StartMenuPlayerCallback} },
-    { gText_MenuSave, {.u8_void = StartMenuSaveCallback} },
-    { gText_MenuOption, {.u8_void = StartMenuOptionCallback} },
-    { gText_MenuExit, {.u8_void = StartMenuExitCallback} },
-    { gText_MenuRetire, {.u8_void = StartMenuSafariZoneRetireCallback} },
-    { gText_MenuPlayer, {.u8_void = StartMenuLinkPlayerCallback} }
+    [STARTMENU_POKEDEX] = { gText_MenuPokedex, {.u8_void = StartMenuPokedexCallback} },
+    [STARTMENU_POKEMON] = { gText_MenuPokemon, {.u8_void = StartMenuPokemonCallback} },
+    [STARTMENU_BAG]     = { gText_MenuBag,     {.u8_void = StartMenuBagCallback} },
+    [STARTMENU_PLAYER]  = { gText_MenuPlayer,  {.u8_void = StartMenuPlayerCallback} },
+    [STARTMENU_SAVE]    = { gText_MenuSave,    {.u8_void = StartMenuSaveCallback} },
+    [STARTMENU_OPTION]  = { gText_MenuOption,  {.u8_void = StartMenuOptionCallback} },
+    [STARTMENU_EXIT]    = { gText_MenuExit,    {.u8_void = StartMenuExitCallback} },
+    [STARTMENU_RETIRE]  = { gText_MenuRetire,  {.u8_void = StartMenuSafariZoneRetireCallback} },
+    [STARTMENU_PLAYER2] = { gText_MenuPlayer,  {.u8_void = StartMenuLinkPlayerCallback} }
 };
 
 static const struct WindowTemplate sSafariZoneStatsWindowTemplate = {
@@ -935,6 +936,9 @@ static void task50_after_link_battle_save(u8 taskId)
             if (WriteSaveBlock1Sector())
             {
                 ClearContinueGameWarpStatus2();
+#if REVISION >= 0xA
+                svc_FinishSave();
+#endif
                 data[0] = 3;
             }
             break;

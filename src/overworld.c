@@ -59,15 +59,20 @@
 #define PLAYER_LINK_STATE_READY 0x82
 #define PLAYER_LINK_STATE_EXITING_ROOM 0x83
 
-#define FACING_NONE 0
-#define FACING_UP 1
-#define FACING_DOWN 2
-#define FACING_LEFT 3
-#define FACING_RIGHT 4
-#define FACING_FORCED_UP 7
-#define FACING_FORCED_DOWN 8
-#define FACING_FORCED_LEFT 9
-#define FACING_FORCED_RIGHT 10
+enum LinkFacing
+{
+    FACING_NONE,
+    FACING_UP,
+    FACING_DOWN,
+    FACING_LEFT,
+    FACING_RIGHT,
+    FACING_UNUSED1,
+    FACING_UNUSED2,
+    FACING_FORCED_UP,
+    FACING_FORCED_DOWN,
+    FACING_FORCED_LEFT,
+    FACING_FORCED_RIGHT,
+};
 
 typedef u16 (*KeyInterCB)(u32 key);
 
@@ -493,8 +498,8 @@ static const struct MapLayout *GetMapLayout(void)
 // Routines related to warps
 
 static const struct WarpData sDummyWarpData = {
-    .mapGroup = MAP_GROUP(UNDEFINED),
-    .mapNum = MAP_NUM(UNDEFINED),
+    .mapGroup = MAP_GROUP(MAP_UNDEFINED),
+    .mapNum = MAP_NUM(MAP_UNDEFINED),
     .warpId = 0xFF,
     .x = -1,
     .y = -1
@@ -519,9 +524,9 @@ static void SetWarpData(struct WarpData *warp, s8 mapGroup, s8 mapNum, s8 warpId
 
 static bool32 IsDummyWarp(struct WarpData *warp)
 {
-    if (warp->mapGroup != (s8)MAP_GROUP(UNDEFINED))
+    if (warp->mapGroup != (s8)MAP_GROUP(MAP_UNDEFINED))
         return FALSE;
-    else if (warp->mapNum != (s8)MAP_NUM(UNDEFINED))
+    else if (warp->mapNum != (s8)MAP_NUM(MAP_UNDEFINED))
         return FALSE;
     else if (warp->warpId != -1)
         return FALSE;
@@ -611,7 +616,7 @@ void SetWarpDestinationToHealLocation(u8 healLocationId)
 {
     const struct HealLocation *warp = GetHealLocation(healLocationId);
     if (warp)
-        SetWarpDestination(warp->group, warp->map, -1, warp->x, warp->y);
+        SetWarpDestination(warp->mapGroup, warp->mapNum, -1, warp->x, warp->y);
 }
 
 void SetWarpDestinationToLastHealLocation(void)
@@ -628,7 +633,7 @@ void SetLastHealLocationWarp(u8 healLocationId)
 {
     const struct HealLocation *healLocation = GetHealLocation(healLocationId);
     if (healLocation)
-        SetWarpData(&gSaveBlock1Ptr->lastHealLocation, healLocation->group, healLocation->map, -1, healLocation->x, healLocation->y);
+        SetWarpData(&gSaveBlock1Ptr->lastHealLocation, healLocation->mapGroup, healLocation->mapNum, -1, healLocation->x, healLocation->y);
 }
 
 void UpdateEscapeWarp(s16 x, s16 y)
@@ -636,7 +641,7 @@ void UpdateEscapeWarp(s16 x, s16 y)
     u8 currMapType = GetCurrentMapType();
     u8 destMapType = GetMapTypeByGroupAndId(sWarpDestination.mapGroup, sWarpDestination.mapNum);
     u8 delta;
-    if (IsMapTypeOutdoors(currMapType) && IsMapTypeOutdoors(destMapType) != TRUE && !(gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(VIRIDIAN_FOREST) && gSaveBlock1Ptr->location.mapNum == MAP_NUM(VIRIDIAN_FOREST)))
+    if (IsMapTypeOutdoors(currMapType) && IsMapTypeOutdoors(destMapType) != TRUE && !(gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_VIRIDIAN_FOREST) && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_VIRIDIAN_FOREST)))
     {
         delta = GetPlayerFacingDirection() != DIR_SOUTH;
         SetEscapeWarp(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum, -1, x - 7, y - 7 + delta);
@@ -690,7 +695,7 @@ void SetContinueGameWarpToHealLocation(u8 healLocationId)
 {
     const struct HealLocation *warp = GetHealLocation(healLocationId);
     if (warp)
-        SetWarpData(&gSaveBlock1Ptr->continueGameWarp, warp->group, warp->map, -1, warp->x, warp->y);
+        SetWarpData(&gSaveBlock1Ptr->continueGameWarp, warp->mapGroup, warp->mapNum, -1, warp->x, warp->y);
 }
 
 void SetContinueGameWarpToDynamicWarp(int unused)
@@ -894,10 +899,10 @@ bool8 MetatileBehavior_IsSurfableInSeafoamIslands(u16 metatileBehavior)
 {
     if (MetatileBehavior_IsSurfable(metatileBehavior) != TRUE)
         return FALSE;
-    if ((gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(SEAFOAM_ISLANDS_B3F)
-          && gSaveBlock1Ptr->location.mapNum == MAP_NUM(SEAFOAM_ISLANDS_B3F))
-     || (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(SEAFOAM_ISLANDS_B4F)
-          && gSaveBlock1Ptr->location.mapNum == MAP_NUM(SEAFOAM_ISLANDS_B4F)))
+    if ((gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_SEAFOAM_ISLANDS_B3F)
+          && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_SEAFOAM_ISLANDS_B3F))
+     || (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_SEAFOAM_ISLANDS_B4F)
+          && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_SEAFOAM_ISLANDS_B4F)))
         return TRUE;
     return FALSE;
 }
@@ -1019,7 +1024,7 @@ void Overworld_PlaySpecialMapMusic(void)
     if (gDisableMapMusicChangeOnMapLoad == MUSIC_DISABLE_KEEP)
         return;
 
-    if (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(POKEMON_LEAGUE_CHAMPIONS_ROOM) && gSaveBlock1Ptr->location.mapNum == MAP_NUM(POKEMON_LEAGUE_CHAMPIONS_ROOM))
+    if (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM) && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM))
     {
         PlayerGetDestCoords(&x, &y);
         if (y - 7 < 11 && gMPlayInfo_BGM.songHeader == &mus_victory_gym_leader)
@@ -1278,7 +1283,7 @@ static const int sUnusedData[] = {
       44
 };
 
-const struct Coords32 gDirectionToVectors[] = 
+const struct Coords32 gDirectionToVectors[] =
 {
     [DIR_NONE]      = { 0,  0},
     [DIR_SOUTH]     = { 0,  1},
@@ -1511,6 +1516,13 @@ static bool8 RunFieldCallback(void)
 
     return TRUE;
 }
+
+#if REVISION >= 0xA
+void ClearFieldCallback(void)
+{
+    gFieldCallback = NULL;
+}
+#endif
 
 void CB2_NewGame(void)
 {
@@ -2545,21 +2557,17 @@ static u8 (*const sLinkPlayerMovementModes[])(struct LinkPlayerObjectEvent *, st
 // These handlers return TRUE if the movement was scripted and successful, and FALSE otherwise.
 static bool8 (*const sLinkPlayerFacingHandlers[])(struct LinkPlayerObjectEvent *, struct ObjectEvent *, u8) =
 {
-    [DIR_NONE]  = FacingHandler_DoNothing,
-    [DIR_SOUTH] = FacingHandler_DpadMovement,
-    [DIR_NORTH] = FacingHandler_DpadMovement,
-    [DIR_WEST]  = FacingHandler_DpadMovement,
-    [DIR_EAST]  = FacingHandler_DpadMovement,
-};
-
-static bool8 (*const sUnusedLinkPlayerFacingHandlers[])(struct LinkPlayerObjectEvent *, struct ObjectEvent *, u8) =
-{
-    FacingHandler_DoNothing,
-    FacingHandler_DoNothing,
-    FacingHandler_ForcedFacingChange,
-    FacingHandler_ForcedFacingChange,
-    FacingHandler_ForcedFacingChange,
-    FacingHandler_ForcedFacingChange,
+    [FACING_NONE]         = FacingHandler_DoNothing,
+    [FACING_UP]           = FacingHandler_DpadMovement,
+    [FACING_DOWN]         = FacingHandler_DpadMovement,
+    [FACING_LEFT]         = FacingHandler_DpadMovement,
+    [FACING_RIGHT]        = FacingHandler_DpadMovement,
+    [FACING_UNUSED1]      = FacingHandler_DoNothing,
+    [FACING_UNUSED2]      = FacingHandler_DoNothing,
+    [FACING_FORCED_UP]    = FacingHandler_ForcedFacingChange,
+    [FACING_FORCED_DOWN]  = FacingHandler_ForcedFacingChange,
+    [FACING_FORCED_LEFT]  = FacingHandler_ForcedFacingChange,
+    [FACING_FORCED_RIGHT] = FacingHandler_ForcedFacingChange,
 };
 
 // These handlers are run after an attempted movement.
@@ -3059,7 +3067,8 @@ static bool32 CanCableClubPlayerPressStart(struct CableClubPlayer *player)
 static const u8 *TryGetTileEventScript(struct CableClubPlayer *player)
 {
     if (player->movementMode != MOVEMENT_MODE_SCRIPTED)
-        return FACING_NONE;
+        return NULL;
+
     return GetCoordEventScriptAtMapPosition(&player->pos);
 }
 
@@ -3081,7 +3090,7 @@ static const u8 *TryInteractWithPlayer(struct CableClubPlayer *player)
     u8 linkPlayerId;
 
     if (player->movementMode != MOVEMENT_MODE_FREE && player->movementMode != MOVEMENT_MODE_SCRIPTED)
-        return FACING_NONE;
+        return NULL;
 
     otherPlayerPos = player->pos;
     otherPlayerPos.x += gDirectionToVectors[player->facing].x;

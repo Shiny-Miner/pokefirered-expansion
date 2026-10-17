@@ -78,7 +78,7 @@ INCLUDE_SCANINC_ARGS := $(INCLUDE_DIRS:%=-I %)
 O_LEVEL ?= 2
 CPPFLAGS := $(INCLUDE_CPP_ARGS) -Wno-trigraphs -D$(GAME_VERSION) -DREVISION=$(GAME_REVISION) -D$(GAME_LANGUAGE) -DMODERN=$(MODERN)
 ifeq ($(MODERN),0)
-  CPPFLAGS += -I tools/agbcc/include -I tools/agbcc -nostdinc -undef
+  CPPFLAGS += -I tools/agbcc/include -I tools/agbcc -nostdinc -undef -std=gnu89
   CC1 := tools/agbcc/bin/agbcc$(EXE)
   override CFLAGS += -mthumb-interwork -Wimplicit -Wparentheses -Werror -O$(O_LEVEL) -fhex-asm
   LIBPATH := -L ../../tools/agbcc/lib
@@ -108,7 +108,7 @@ AUTO_GEN_TARGETS :=
 include make_tools.mk
 # Tool executables
 GFX       := $(TOOLS_DIR)/gbagfx/gbagfx$(EXE)
-AIF       := $(TOOLS_DIR)/aif2pcm/aif2pcm$(EXE)
+WAV2AGB   := $(TOOLS_DIR)/wav2agb/wav2agb$(EXE)
 MID       := $(TOOLS_DIR)/mid2agb/mid2agb$(EXE)
 SCANINC   := $(TOOLS_DIR)/scaninc/scaninc$(EXE)
 PREPROC   := $(TOOLS_DIR)/preproc/preproc$(EXE)
@@ -129,7 +129,7 @@ MAKEFLAGS += --no-print-directory
 # Delete files that weren't built properly
 .DELETE_ON_ERROR:
 
-ALL_BUILDS := firered firered_rev1 leafgreen leafgreen_rev1
+ALL_BUILDS := firered firered_rev1 firered_rev10 leafgreen leafgreen_rev1 leafgreen_rev10
 ALL_BUILDS += $(ALL_BUILDS:%=%_modern)
 
 RULES_NO_SCAN += clean clean-assets tidy generated clean-generated
@@ -214,7 +214,7 @@ clean-assets:
 	rm -f $(DATA_ASM_SUBDIR)/layouts/layouts.inc $(DATA_ASM_SUBDIR)/layouts/layouts_table.inc
 	rm -f $(DATA_ASM_SUBDIR)/maps/connections.inc $(DATA_ASM_SUBDIR)/maps/events.inc $(DATA_ASM_SUBDIR)/maps/groups.inc $(DATA_ASM_SUBDIR)/maps/headers.inc
 	find sound -iname '*.bin' -exec rm {} +
-	find . \( -iname '*.1bpp' -o -iname '*.4bpp' -o -iname '*.8bpp' -o -iname '*.gbapal' -o -iname '*.lz' -o -iname '*.rl' -o -iname '*.latfont' -o -iname '*.hwjpnfont' -o -iname '*.fwjpnfont' \) -exec rm {} +
+	find . \( -iname '*.1bpp' -o -iname '*.4bpp' -o -iname '*.8bpp' -o -iname '*.gbapal' -o -iname '*.lz' -o -iname '*.rl' -o -iname '*.hwlatfont' -o -iname '*.fwlatfont' -o -iname '*.hwjpnfont' -o -iname '*.fwjpnfont' \) -exec rm {} +
 	find $(DATA_ASM_SUBDIR)/maps \( -iname 'connections.inc' -o -iname 'events.inc' -o -iname 'header.inc' \) -exec rm {} +
 
 tidy:
@@ -224,13 +224,17 @@ tidy:
 # "friendly" target names for convenience sake
 firered:                ; @$(MAKE) GAME_VERSION=FIRERED
 firered_rev1:           ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=1
+firered_switch:          ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=10
 leafgreen:              ; @$(MAKE) GAME_VERSION=LEAFGREEN
 leafgreen_rev1:         ; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=1
+leafgreen_switch:        ; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=10
 
 compare_firered:        ; @$(MAKE) GAME_VERSION=FIRERED COMPARE=1
 compare_firered_rev1:   ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=1 COMPARE=1
+compare_firered_switch: ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=10 COMPARE=1
 compare_leafgreen:      ; @$(MAKE) GAME_VERSION=LEAFGREEN COMPARE=1
 compare_leafgreen_rev1: ; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=1 COMPARE=1
+compare_leafgreen_switch:; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=10 COMPARE=1
 
 firered_modern:        ; @$(MAKE) GAME_VERSION=FIRERED MODERN=1
 firered_rev1_modern:   ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=1 MODERN=1
@@ -253,7 +257,7 @@ generated: $(AUTO_GEN_TARGETS)
 %.s:   ;
 %.png: ;
 %.pal: ;
-%.aif: ;
+%.wav: ;
 
 %.1bpp:   %.png  ; $(GFX) $< $@
 %.4bpp:   %.png  ; $(GFX) $< $@
@@ -264,7 +268,8 @@ generated: $(AUTO_GEN_TARGETS)
 %.rl:     %      ; $(GFX) $< $@
 
 clean-generated:
-	-rm -f $(AUTO_GEN_TARGETS)
+	@rm -f $(AUTO_GEN_TARGETS)
+	@echo "rm -f <AUTO_GEN_TARGETS>"
 
 ifeq ($(MODERN),0)
 $(C_BUILDDIR)/agb_flash.o: CFLAGS := -O -mthumb-interwork
@@ -301,10 +306,10 @@ ifneq ($(KEEP_TEMPS),1)
 	@echo "$(CC1) <flags> -o $@ $<"
 	@$(CPP) $(CPPFLAGS) $< | $(PREPROC) -i $< charmap.txt | $(CC1) $(CFLAGS) -o - - | cat - <(echo -e ".text\n\t.align\t2, 0") | $(AS) $(ASFLAGS) -o $@ -
 else
-	@$(CPP) $(CPPFLAGS) $< -o $*.i
-	@$(PREPROC) $*.i charmap.txt | $(CC1) $(CFLAGS) -o $*.s
-	@echo -e ".text\n\t.align\t2, 0\n" >> $*.s
-	$(AS) $(ASFLAGS) -o $@ $*.s
+	@$(CPP) $(CPPFLAGS) $< -o $(C_BUILDDIR)/$*.i
+	@$(PREPROC) $(C_BUILDDIR)/$*.i charmap.txt | $(CC1) $(CFLAGS) -o $(C_BUILDDIR)/$*.s
+	@echo -e ".text\n\t.align\t2, 0\n" >> $(C_BUILDDIR)/$*.s
+	$(AS) $(ASFLAGS) -o $@ $(C_BUILDDIR)/$*.s
 endif
 
 $(C_BUILDDIR)/%.d: $(C_SUBDIR)/%.c
@@ -347,16 +352,30 @@ endif
 $(OBJ_DIR)/sym_bss.ld: sym_bss.txt
 	$(RAMSCRGEN) .bss $< ENGLISH > $@
 
+$(OBJ_DIR)/sym_bss_rev10.ld: sym_bss_rev10.txt
+	$(RAMSCRGEN) .bss $< ENGLISH > $@
+
 $(OBJ_DIR)/sym_common.ld: sym_common.txt $(C_OBJS) $(wildcard common_syms/*.txt)
+	$(RAMSCRGEN) COMMON $< ENGLISH -c $(C_BUILDDIR),common_syms > $@
+
+$(OBJ_DIR)/sym_common_rev10.ld: sym_common_rev10.txt $(C_OBJS) $(wildcard common_syms/*.txt)
 	$(RAMSCRGEN) COMMON $< ENGLISH -c $(C_BUILDDIR),common_syms > $@
 
 $(OBJ_DIR)/sym_ewram.ld: sym_ewram.txt
 	$(RAMSCRGEN) ewram_data $< ENGLISH > $@
 
+$(OBJ_DIR)/sym_ewram_rev10.ld: sym_ewram_rev10.txt
+	$(RAMSCRGEN) ewram_data $< ENGLISH > $@
+
 # Linker script
 ifeq ($(MODERN),0)
+ifeq ($(GAME_REVISION),10)
+LD_SCRIPT := ld_script_rev10.ld
+LD_SCRIPT_DEPS := $(OBJ_DIR)/sym_bss_rev10.ld $(OBJ_DIR)/sym_common_rev10.ld $(OBJ_DIR)/sym_ewram_rev10.ld
+else
 LD_SCRIPT := ld_script.ld
 LD_SCRIPT_DEPS := $(OBJ_DIR)/sym_bss.ld $(OBJ_DIR)/sym_common.ld $(OBJ_DIR)/sym_ewram.ld
+endif
 else
 LD_SCRIPT := ld_script_modern.ld
 LD_SCRIPT_DEPS :=
