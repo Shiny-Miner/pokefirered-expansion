@@ -237,7 +237,7 @@ static const u8 sText_PkmnAnchoredItself[] = _("{B_DEF_NAME_WITH_PREFIX} anchore
 static const u8 sText_PkmnWasMadeDrowsy[] = _("{B_ATK_NAME_WITH_PREFIX} made\n{B_DEF_NAME_WITH_PREFIX} drowsy!");
 static const u8 sText_PkmnKnockedOff[] = _("{B_ATK_NAME_WITH_PREFIX} knocked off\n{B_DEF_NAME_WITH_PREFIX}'s {B_LAST_ITEM}!");
 static const u8 sText_PkmnSwappedAbilities[] = _("{B_ATK_NAME_WITH_PREFIX} swapped abilities\nwith its opponent!");
-static const u8 sText_PkmnSealedOpponentMove[] = _("{B_ATK_NAME_WITH_PREFIX} sealed the\nopponent's moveシsス!");
+static const u8 sText_PkmnSealedOpponentMove[] = _("{B_ATK_NAME_WITH_PREFIX} sealed the\nopponent's move(s)!");
 static const u8 sText_PkmnWantsGrudge[] = _("{B_ATK_NAME_WITH_PREFIX} wants the\nopponent to bear a GRUDGE!");
 static const u8 sText_PkmnLostPPGrudge[] = _("{B_ATK_NAME_WITH_PREFIX}'s {B_BUFF1} lost\nall its PP due to the GRUDGE!");
 static const u8 sText_PkmnShroudedItself[] = _("{B_ATK_NAME_WITH_PREFIX} shrouded\nitself in {B_CURRENT_MOVE}!");
@@ -1778,33 +1778,27 @@ void BufferStringBattle(u16 stringId)
 
 u32 BattleStringExpandPlaceholdersToDisplayedString(const u8 *src)
 {
-    BattleStringExpandPlaceholders(src, gDisplayedStringBattle);
+    return BattleStringExpandPlaceholders(src, gDisplayedStringBattle);
 }
 
 static const u8 *TryGetStatusString(u8 *src)
 {
     u32 i;
     u8 status[] = _("$$$$$$$");
-    u32 chars1, chars2;
+    u32 chars1, chars2, *cmp;
     u8 *statusPtr;
 
     statusPtr = status;
-    for (i = 0; i < 8; i++)
-    {
-        if (*src == EOS)
-            break;
-        *statusPtr = *src;
-        src++;
-        statusPtr++;
-    }
+    for (i = 0; i < 8 && *src != EOS; i++)
+        *statusPtr++ = *src++;
 
-    chars1 = *(u32 *)(&status[0]);
-    chars2 = *(u32 *)(&status[4]);
+    chars1 = *(u32 *)status;
+    chars2 = *((u32 *)status + 1);
 
     for (i = 0; i < NELEMS(gStatusConditionStringsTable); i++)
     {
-        if (chars1 == *(u32 *)(&gStatusConditionStringsTable[i][0][0])
-            && chars2 == *(u32 *)(&gStatusConditionStringsTable[i][0][4]))
+        cmp = (u32 *)gStatusConditionStringsTable[i][0];
+        if (chars1 == cmp[0] && chars2 == cmp[1])
             return gStatusConditionStringsTable[i][1];
     }
     return NULL;

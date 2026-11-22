@@ -21,7 +21,8 @@
 *.id0
 *.id1
 *.id2
-*.latfont
+*.hwlatfont
+*.fwlatfont
 *.lz
 *.map
 *.nam
@@ -44,6 +45,7 @@ ld_script_ruby.txt
 ld_script_sapphire.txt
 sound/**/*.bin
 sound/songs/midi/*.s
+src/data/heal_locations.h
 src/data/items.h
 src/data/wild_encounters.h
 src/data/region_map/region_map_entries.h
@@ -61,3 +63,8 @@ prefabs.json
 .vscode/*.*
 *.js
 *.sym
+build-cmake-*/
+.cache/
+CMakeLists.txt
+compile_commands.json
+.porydaw/

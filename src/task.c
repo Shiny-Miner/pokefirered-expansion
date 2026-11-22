@@ -4,7 +4,7 @@
 #define HEAD_SENTINEL 0xFE
 #define TAIL_SENTINEL 0xFF
 
-struct Task gTasks[NUM_TASKS];
+COMMON_DATA struct Task gTasks[NUM_TASKS] = {0};
 
 static void InsertTask(u8 newTaskId);
 static u8 FindFirstActiveTask();
@@ -86,6 +86,10 @@ static void InsertTask(u8 newTaskId)
 
 void DestroyTask(u8 taskId)
 {
+#if REVISION >= 0xA
+    // Bounds check on the task ID.
+    if (taskId >= NUM_TASKS) return;
+#endif
     if (gTasks[taskId].isActive)
     {
         gTasks[taskId].isActive = FALSE;

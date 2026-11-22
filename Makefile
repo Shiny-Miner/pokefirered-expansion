@@ -78,7 +78,7 @@ INCLUDE_SCANINC_ARGS := $(INCLUDE_DIRS:%=-I %)
 O_LEVEL ?= 2
 CPPFLAGS := $(INCLUDE_CPP_ARGS) -Wno-trigraphs -D$(GAME_VERSION) -DREVISION=$(GAME_REVISION) -D$(GAME_LANGUAGE) -DMODERN=$(MODERN)
 ifeq ($(MODERN),0)
-  CPPFLAGS += -I tools/agbcc/include -I tools/agbcc -nostdinc -undef
+  CPPFLAGS += -I tools/agbcc/include -I tools/agbcc -nostdinc -undef -std=gnu89
   CC1 := tools/agbcc/bin/agbcc$(EXE)
   override CFLAGS += -mthumb-interwork -Wimplicit -Wparentheses -Werror -O$(O_LEVEL) -fhex-asm
   LIBPATH := -L ../../tools/agbcc/lib
@@ -108,7 +108,7 @@ AUTO_GEN_TARGETS :=
 include make_tools.mk
 # Tool executables
 GFX       := $(TOOLS_DIR)/gbagfx/gbagfx$(EXE)
-AIF       := $(TOOLS_DIR)/aif2pcm/aif2pcm$(EXE)
+WAV2AGB   := $(TOOLS_DIR)/wav2agb/wav2agb$(EXE)
 MID       := $(TOOLS_DIR)/mid2agb/mid2agb$(EXE)
 SCANINC   := $(TOOLS_DIR)/scaninc/scaninc$(EXE)
 PREPROC   := $(TOOLS_DIR)/preproc/preproc$(EXE)
@@ -129,7 +129,7 @@ MAKEFLAGS += --no-print-directory
 # Delete files that weren't built properly
 .DELETE_ON_ERROR:
 
-ALL_BUILDS := firered firered_rev1 leafgreen leafgreen_rev1
+ALL_BUILDS := firered firered_rev1 firered_rev10 leafgreen leafgreen_rev1 leafgreen_rev10
 ALL_BUILDS += $(ALL_BUILDS:%=%_modern)
 
 RULES_NO_SCAN += clean clean-assets tidy generated clean-generated
@@ -150,12 +150,20 @@ ifneq (,$(MAKECMDGOALS))
   endif
 endif
 
+.SHELLSTATUS ?= 0
+
 ifeq ($(SETUP_PREREQS),1)
   # If set on: Default target or a rule requiring a scan
   # Forcibly execute `make tools` since we need them for what we are doing.
-  $(call infoshell, $(MAKE) -f make_tools.mk)
+  $(foreach line, $(shell $(MAKE) -f make_tools.mk | sed "s/ /__SPACE__/g"), $(info $(subst __SPACE__, ,$(line))))
+  ifneq ($(.SHELLSTATUS),0)
+    $(error Errors occurred while building tools. See error messages above for more details)
+  endif
   # Oh and also generate mapjson sources before we use `SCANINC`.
-  $(call infoshell, $(MAKE) generated)
+  $(foreach line, $(shell $(MAKE) generated | sed "s/ /__SPACE__/g"), $(info $(subst __SPACE__, ,$(line))))
+  ifneq ($(.SHELLSTATUS),0)
+    $(error Errors occurred while generating map-related sources. See error messages above for more details)
+  endif
 endif
 
 # Collect sources
@@ -206,7 +214,7 @@ clean-assets:
 	rm -f $(DATA_ASM_SUBDIR)/layouts/layouts.inc $(DATA_ASM_SUBDIR)/layouts/layouts_table.inc
 	rm -f $(DATA_ASM_SUBDIR)/maps/connections.inc $(DATA_ASM_SUBDIR)/maps/events.inc $(DATA_ASM_SUBDIR)/maps/groups.inc $(DATA_ASM_SUBDIR)/maps/headers.inc
 	find sound -iname '*.bin' -exec rm {} +
-	find . \( -iname '*.1bpp' -o -iname '*.4bpp' -o -iname '*.8bpp' -o -iname '*.gbapal' -o -iname '*.lz' -o -iname '*.rl' -o -iname '*.latfont' -o -iname '*.hwjpnfont' -o -iname '*.fwjpnfont' \) -exec rm {} +
+	find . \( -iname '*.1bpp' -o -iname '*.4bpp' -o -iname '*.8bpp' -o -iname '*.gbapal' -o -iname '*.lz' -o -iname '*.rl' -o -iname '*.hwlatfont' -o -iname '*.fwlatfont' -o -iname '*.hwjpnfont' -o -iname '*.fwjpnfont' \) -exec rm {} +
 	find $(DATA_ASM_SUBDIR)/maps \( -iname 'connections.inc' -o -iname 'events.inc' -o -iname 'header.inc' \) -exec rm {} +
 
 tidy:
@@ -216,13 +224,17 @@ tidy:
 # "friendly" target names for convenience sake
 firered:                ; @$(MAKE) GAME_VERSION=FIRERED
 firered_rev1:           ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=1
+firered_switch:          ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=10
 leafgreen:              ; @$(MAKE) GAME_VERSION=LEAFGREEN
 leafgreen_rev1:         ; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=1
+leafgreen_switch:        ; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=10
 
 compare_firered:        ; @$(MAKE) GAME_VERSION=FIRERED COMPARE=1
 compare_firered_rev1:   ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=1 COMPARE=1
+compare_firered_switch: ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=10 COMPARE=1
 compare_leafgreen:      ; @$(MAKE) GAME_VERSION=LEAFGREEN COMPARE=1
 compare_leafgreen_rev1: ; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=1 COMPARE=1
+compare_leafgreen_switch:; @$(MAKE) GAME_VERSION=LEAFGREEN GAME_REVISION=10 COMPARE=1
 
 firered_modern:        ; @$(MAKE) GAME_VERSION=FIRERED MODERN=1
 firered_rev1_modern:   ; @$(MAKE) GAME_VERSION=FIRERED GAME_REVISION=1 MODERN=1
@@ -237,12 +249,15 @@ include spritesheet_rules.mk
 include json_data_rules.mk
 include audio_rules.mk
 
+# NOTE: Tools must have been built prior (FIXME)
+# so you can't really call this rule directly
 generated: $(AUTO_GEN_TARGETS)
+	@: # Silence the "Nothing to be done for `generated'" message, which some people were confusing for an error.
 
 %.s:   ;
 %.png: ;
 %.pal: ;
-%.aif: ;
+%.wav: ;
 
 %.1bpp:   %.png  ; $(GFX) $< $@
 %.4bpp:   %.png  ; $(GFX) $< $@
@@ -252,10 +267,9 @@ generated: $(AUTO_GEN_TARGETS)
 %.lz:     %      ; $(GFX) $< $@
 %.rl:     %      ; $(GFX) $< $@
 
-# NOTE: Tools must have been built prior (FIXME)
-generated: tools $(AUTO_GEN_TARGETS)
 clean-generated:
-	-rm -f $(AUTO_GEN_TARGETS)
+	@rm -f $(AUTO_GEN_TARGETS)
+	@echo "rm -f <AUTO_GEN_TARGETS>"
 
 ifeq ($(MODERN),0)
 $(C_BUILDDIR)/agb_flash.o: CFLAGS := -O -mthumb-interwork
@@ -287,86 +301,81 @@ endif
 # As a side effect, they're evaluated immediately instead of when the rule is invoked.
 # It doesn't look like $(shell) can be deferred so there might not be a better way (Icedude_907: there is soon).
 
-# For C dependencies.
-# Args: $1 = Output file without extension (build/assets/src/data), $2 = Input file (src/data.c)
-define C_DEP
-$(call C_DEP_IMPL,$1,$2,$1)
-endef
-# Internal implementation details.
-# $1: Output file without extension, $2 input file, $3 temp path (if keeping)
-define C_DEP_IMPL
-$1.o: $2
+$(C_BUILDDIR)/%.o: $(C_SUBDIR)/%.c
 ifneq ($(KEEP_TEMPS),1)
-	@echo "$$(CC1) <flags> -o $$@ $$<"
-	@$$(CPP) $$(CPPFLAGS) $$< | $$(PREPROC) -i $$< charmap.txt | $$(CC1) $$(CFLAGS) -o - - | cat - <(echo -e ".text\n\t.align\t2, 0") | $$(AS) $$(ASFLAGS) -o $$@ -
+	@echo "$(CC1) <flags> -o $@ $<"
+	@$(CPP) $(CPPFLAGS) $< | $(PREPROC) -i $< charmap.txt | $(CC1) $(CFLAGS) -o - - | cat - <(echo -e ".text\n\t.align\t2, 0") | $(AS) $(ASFLAGS) -o $@ -
 else
-	@$$(CPP) $$(CPPFLAGS) $$< -o $3.i
-	@$$(PREPROC) $3.i charmap.txt | $$(CC1) $$(CFLAGS) -o $3.s
-	@echo -e ".text\n\t.align\t2, 0 @ Don't pad with nop\n" >> $3.s
-	$$(AS) $$(ASFLAGS) -o $$@ $3.s
+	@$(CPP) $(CPPFLAGS) $< -o $(C_BUILDDIR)/$*.i
+	@$(PREPROC) $(C_BUILDDIR)/$*.i charmap.txt | $(CC1) $(CFLAGS) -o $(C_BUILDDIR)/$*.s
+	@echo -e ".text\n\t.align\t2, 0\n" >> $(C_BUILDDIR)/$*.s
+	$(AS) $(ASFLAGS) -o $@ $(C_BUILDDIR)/$*.s
 endif
-$1.d: $2
-	$(SCANINC) -M $1.d $(INCLUDE_SCANINC_ARGS) -I tools/agbcc/include $2
+
+$(C_BUILDDIR)/%.d: $(C_SUBDIR)/%.c
+	$(SCANINC) -M $@ $(INCLUDE_SCANINC_ARGS) -I tools/agbcc/include $<
+
 ifneq ($(NODEP),1)
-$1.o: $1.d
--include $1.d
-endif
-endef
-
-# Create generic rules if no dependency scanning, else create the real rules
-ifeq ($(NODEP),1)
-$(eval $(call C_DEP,$(C_BUILDDIR)/%,$(C_SUBDIR)/%.c))
-else
-$(foreach src,$(C_SRCS),$(eval $(call C_DEP,$(OBJ_DIR)/$(basename $(src)),$(src))))
+-include $(addprefix $(OBJ_DIR)/,$(C_SRCS:.c=.d))
 endif
 
-# Similar methodology for Assembly files
-# $1: Output path without extension, $2: Input file (`*.s`)
-define ASM_DEP
-$1.o: $2
-	$$(AS) $$(ASFLAGS) -o $$@ $$<
-$(call ASM_SCANINC,$1,$2)
-endef
-# As above but first doing a preprocessor pass
-define ASM_DEP_PREPROC
-$1.o: $2
-	$$(PREPROC) $$< charmap.txt | $$(CPP) $(INCLUDE_SCANINC_ARGS) - | $$(PREPROC) -ie $$< charmap.txt | $$(AS) $$(ASFLAGS) -o $$@
-$(call ASM_SCANINC,$1,$2)
-endef
+$(ASM_BUILDDIR)/%.o: $(ASM_SUBDIR)/%.s
+	$(AS) $(ASFLAGS) -o $@ $<
 
-define ASM_SCANINC
+$(ASM_BUILDDIR)/%.d: $(ASM_SUBDIR)/%.s
+	$(SCANINC) -M $@ $(INCLUDE_SCANINC_ARGS) -I "" $<
+
 ifneq ($(NODEP),1)
-$1.o: $1.d
-$1.d: $2
-	$(SCANINC) -M $1.d $(INCLUDE_SCANINC_ARGS) -I "" $2
--include $1.d
+-include $(addprefix $(OBJ_DIR)/,$(ASM_SRCS:.s=.d))
 endif
-endef
 
-# Dummy rules or real rules
-ifeq ($(NODEP),1)
-$(eval $(call ASM_DEP,$(ASM_BUILDDIR)/%,$(ASM_SUBDIR)/%.s))
-$(eval $(call ASM_DEP_PREPROC,$(C_BUILDDIR)/%,$(C_SUBDIR)/%.s))
-$(eval $(call ASM_DEP_PREPROC,$(DATA_ASM_BUILDDIR)/%,$(DATA_ASM_SUBDIR)/%.s))
-else
-$(foreach src, $(ASM_SRCS), $(eval $(call ASM_DEP,$(src:%.s=$(OBJ_DIR)/%),$(src))))
-$(foreach src, $(C_ASM_SRCS), $(eval $(call ASM_DEP_PREPROC,$(src:%.s=$(OBJ_DIR)/%),$(src))))
-$(foreach src, $(REGULAR_DATA_ASM_SRCS), $(eval $(call ASM_DEP_PREPROC,$(src:%.s=$(OBJ_DIR)/%),$(src))))
+$(C_BUILDDIR)/%.o: $(C_SUBDIR)/%.s
+	$(PREPROC) $< charmap.txt | $(CPP) $(INCLUDE_SCANINC_ARGS) - | $(PREPROC) -ie $< charmap.txt | $(AS) $(ASFLAGS) -o $@
+
+$(C_BUILDDIR)/%.d: $(C_SUBDIR)/%.s
+	$(SCANINC) -M $@ $(INCLUDE_SCANINC_ARGS) -I "" $<
+
+ifneq ($(NODEP),1)
+-include $(addprefix $(OBJ_DIR)/,$(C_ASM_SRCS:.s=.d))
+endif
+
+$(DATA_ASM_BUILDDIR)/%.o: $(DATA_ASM_SUBDIR)/%.s
+	$(PREPROC) $< charmap.txt | $(CPP) $(INCLUDE_SCANINC_ARGS) - | $(PREPROC) -ie $< charmap.txt | $(AS) $(ASFLAGS) -o $@
+
+$(DATA_ASM_BUILDDIR)/%.d: $(DATA_ASM_SUBDIR)/%.s
+	$(SCANINC) -M $@ $(INCLUDE_SCANINC_ARGS) -I "" $<
+
+ifneq ($(NODEP),1)
+-include $(addprefix $(OBJ_DIR)/,$(REGULAR_DATA_ASM_SRCS:.s=.d))
 endif
 
 $(OBJ_DIR)/sym_bss.ld: sym_bss.txt
 	$(RAMSCRGEN) .bss $< ENGLISH > $@
 
+$(OBJ_DIR)/sym_bss_rev10.ld: sym_bss_rev10.txt
+	$(RAMSCRGEN) .bss $< ENGLISH > $@
+
 $(OBJ_DIR)/sym_common.ld: sym_common.txt $(C_OBJS) $(wildcard common_syms/*.txt)
+	$(RAMSCRGEN) COMMON $< ENGLISH -c $(C_BUILDDIR),common_syms > $@
+
+$(OBJ_DIR)/sym_common_rev10.ld: sym_common_rev10.txt $(C_OBJS) $(wildcard common_syms/*.txt)
 	$(RAMSCRGEN) COMMON $< ENGLISH -c $(C_BUILDDIR),common_syms > $@
 
 $(OBJ_DIR)/sym_ewram.ld: sym_ewram.txt
 	$(RAMSCRGEN) ewram_data $< ENGLISH > $@
 
+$(OBJ_DIR)/sym_ewram_rev10.ld: sym_ewram_rev10.txt
+	$(RAMSCRGEN) ewram_data $< ENGLISH > $@
+
 # Linker script
 ifeq ($(MODERN),0)
+ifeq ($(GAME_REVISION),10)
+LD_SCRIPT := ld_script_rev10.ld
+LD_SCRIPT_DEPS := $(OBJ_DIR)/sym_bss_rev10.ld $(OBJ_DIR)/sym_common_rev10.ld $(OBJ_DIR)/sym_ewram_rev10.ld
+else
 LD_SCRIPT := ld_script.ld
 LD_SCRIPT_DEPS := $(OBJ_DIR)/sym_bss.ld $(OBJ_DIR)/sym_common.ld $(OBJ_DIR)/sym_ewram.ld
+endif
 else
 LD_SCRIPT := ld_script_modern.ld
 LD_SCRIPT_DEPS :=
@@ -375,8 +384,10 @@ endif
 # Final rules
 
 # Elf from object files
+LDFLAGS = -Map ../../$(MAP)
 $(ELF): $(LD_SCRIPT) $(LD_SCRIPT_DEPS) $(OBJS)
 	@cd $(OBJ_DIR) && $(LD) $(LDFLAGS) -T ../../$< --print-memory-usage -o ../../$@ $(OBJS_REL) $(LIB) | cat
+	@echo "cd $(OBJ_DIR) && $(LD) $(LDFLAGS) -T ../../$< --print-memory-usage -o ../../$@ <objs> <libs> | cat"
 	$(FIX) $@ -t"$(TITLE)" -c$(GAME_CODE) -m$(MAKER_CODE) -r$(GAME_REVISION) --silent
 
 # Builds the rom from the elf file

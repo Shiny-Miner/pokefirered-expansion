@@ -414,7 +414,7 @@ EWRAM_DATA u8 gSelectedOrderFromParty[3] = {0};
 static EWRAM_DATA u16 sPartyMenuItemId = ITEM_NONE;
 ALIGNED(4) EWRAM_DATA u8 gBattlePartyCurrentOrder[PARTY_SIZE / 2] = {0}; // bits 0-3 are the current pos of Slot 1, 4-7 are Slot 2, and so on
 
-void (*gItemUseCB)(u8, TaskFunc);
+COMMON_DATA void (*gItemUseCB)(u8, TaskFunc) = NULL;
 
 #include "data/pokemon/tutor_learnsets.h"
 #include "data/party_menu.h"
@@ -4087,9 +4087,9 @@ static void DisplayCantUseSurfMessage(void)
         GetXYCoordsOneStepInFrontOfPlayer(&x, &y);
         if (MetatileBehavior_IsFastWater(MapGridGetMetatileBehaviorAt(x, y)) == TRUE)
             DisplayPartyMenuStdMessage(PARTY_MSG_CURRENT_TOO_FAST);
-        else if ((gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(ROUTE17))
-              && ((gSaveBlock1Ptr->location.mapNum == MAP_NUM(ROUTE17))
-                 || (gSaveBlock1Ptr->location.mapNum == MAP_NUM(ROUTE18))))
+        else if ((gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_ROUTE17))
+              && ((gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_ROUTE17))
+                 || (gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_ROUTE18))))
             DisplayPartyMenuStdMessage(PARTY_MSG_ENJOY_CYCLING);
         else
             DisplayPartyMenuStdMessage(PARTY_MSG_CANT_SURF_HERE);

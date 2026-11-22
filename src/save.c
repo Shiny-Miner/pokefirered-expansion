@@ -9,6 +9,7 @@
 #include "fieldmap.h"
 #include "pokemon_storage_system.h"
 #include "gba/flash_internal.h"
+#include "sloopsvc.h"
 
 static u8 HandleWriteSector(u16 sectorId, const struct SaveSectorLocation *locations);
 static u8 TryWriteSector(u8 sectorNum, u8 *data);
@@ -77,18 +78,18 @@ STATIC_ASSERT(sizeof(struct SaveBlock1) <= SECTOR_DATA_SIZE * (SECTOR_ID_SAVEBLO
 STATIC_ASSERT(sizeof(struct PokemonStorage) <= SECTOR_DATA_SIZE * (SECTOR_ID_PKMN_STORAGE_END - SECTOR_ID_PKMN_STORAGE_START + 1), PokemonStorageFreeSpace);
 
 // Sector num to begin writing save data. Sectors are rotated each time the game is saved. (possibly to avoid wear on flash memory?)
-u16 gLastWrittenSector;
-u32 gLastSaveCounter;
-u16 gLastKnownGoodSector;
-u32 gDamagedSaveSectors;
-u32 gSaveCounter;
-struct SaveSector *gSaveDataBufferPtr; // the pointer is in fast IWRAM but points to the slower EWRAM.
-u16 gIncrementalSectorId;
-u16 gSaveUnusedVar;
-u16 gSaveFileStatus;
-void (*gGameContinueCallback)(void);
-struct SaveSectorLocation gRamSaveSectorLocations[NUM_SECTORS_PER_SLOT];
-u16 gSaveAttemptStatus;
+COMMON_DATA u16 gLastWrittenSector = 0;
+COMMON_DATA u32 gLastSaveCounter = 0;
+COMMON_DATA u16 gLastKnownGoodSector = 0;
+COMMON_DATA u32 gDamagedSaveSectors = 0;
+COMMON_DATA u32 gSaveCounter = 0;
+COMMON_DATA struct SaveSector *gSaveDataBufferPtr = NULL; // the pointer is in fast IWRAM but points to the slower EWRAM.
+COMMON_DATA u16 gIncrementalSectorId = 0;
+COMMON_DATA u16 gSaveUnusedVar = 0;
+COMMON_DATA u16 gSaveFileStatus = 0;
+COMMON_DATA void (*gGameContinueCallback)(void) = NULL;
+COMMON_DATA struct SaveSectorLocation gRamSaveSectorLocations[NUM_SECTORS_PER_SLOT] = {0};
+COMMON_DATA u16 gSaveAttemptStatus = 0;
 
 EWRAM_DATA struct SaveSector gSaveDataBuffer = {0};
 EWRAM_DATA u32 gSaveUnusedVar2 = 0;
@@ -212,6 +213,11 @@ static u8 HandleWriteSectorNBytes(u8 sectorId, u8 *data, u16 size)
 
 static u8 TryWriteSector(u8 sectorNum, u8 *data)
 {
+#if REVISION >= 0xA
+    svc_WriteSector(sectorNum, data);
+    SetDamagedSectorBits(DISABLE, sectorNum);
+    return SAVE_STATUS_OK;
+#else
     if (ProgramFlashSectorAndVerify(sectorNum, data)) // is damaged?
     {
         SetDamagedSectorBits(ENABLE, sectorNum); // set damaged sector bits.
@@ -222,6 +228,7 @@ static u8 TryWriteSector(u8 sectorNum, u8 *data)
         SetDamagedSectorBits(DISABLE, sectorNum); // unset damaged sector bits. it's safe now.
         return SAVE_STATUS_OK;
     }
+#endif
 }
 
 static u32 RestoreSaveBackupVarsAndIncrement(const struct SaveSectorLocation *locations)
@@ -312,6 +319,11 @@ static u8 HandleReplaceSector(u16 sectorId, const struct SaveSectorLocation *loc
 
     gSaveDataBufferPtr->checksum = CalculateChecksum(data, size);
 
+#if REVISION >= 0xA
+    svc_ReplaceSector(sectorNum, (u8*)gSaveDataBufferPtr);
+    SetDamagedSectorBits(DISABLE, sectorNum);
+    return SAVE_STATUS_OK;
+#else
     // erase old save data
     EraseFlashSector(sectorNum);
 
@@ -358,6 +370,7 @@ static u8 HandleReplaceSector(u16 sectorId, const struct SaveSectorLocation *loc
             return SAVE_STATUS_OK;
         }
     }
+#endif
 }
 
 static u8 CopySectorSignatureByte(u16 sectorId, const struct SaveSectorLocation *locations)
@@ -679,6 +692,9 @@ u8 HandleSavingData(u8 saveType)
         break;
     }
     gMain.vblankCounter1 = backupPtr;
+#if REVISION >= 0xA
+    svc_FinishSave();
+#endif
     return 0;
 }
 
@@ -872,6 +888,9 @@ void Task_LinkFullSave(u8 taskId)
         gTasks[taskId].data[0] = 1;
         break;
     case 1:
+#if REVISION >= 0xA
+        if (!IsLinkTaskFinished()) break;
+#endif
         SetLinkStandbyCallback();
         gTasks[taskId].data[0] = 2;
         break;
@@ -905,6 +924,9 @@ void Task_LinkFullSave(u8 taskId)
         gTasks[taskId].data[0] = 7;
         break;
     case 7:
+#if REVISION >= 0xA
+        if (!IsLinkTaskFinished()) break;
+#endif
         ClearContinueGameWarpStatus2();
         SetLinkStandbyCallback();
         gTasks[taskId].data[0] = 8;
@@ -913,10 +935,16 @@ void Task_LinkFullSave(u8 taskId)
         if (IsLinkTaskFinished())
         {
             LinkFullSave_SetLastSectorSignature();
+#if REVISION >= 0xA
+            svc_FinishSave();
+#endif
             gTasks[taskId].data[0] = 9;
         }
         break;
     case 9:
+#if REVISION >= 0xA
+        if (!IsLinkTaskFinished()) break;
+#endif
         SetLinkStandbyCallback();
         gTasks[taskId].data[0] = 10;
         break;

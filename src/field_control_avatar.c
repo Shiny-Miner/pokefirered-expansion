@@ -71,7 +71,7 @@ static bool8 TryDoorWarp(struct MapPosition * position, u16 metatileBehavior, u8
 static s8 GetWarpEventAtPosition(struct MapHeader * mapHeader, u16 x, u16 y, u8 z);
 static const u8 *GetCoordEventScriptAtPosition(struct MapHeader * mapHeader, u16 x, u16 y, u8 z);
 
-struct FieldInput gFieldInputRecord;
+COMMON_DATA struct FieldInput gFieldInputRecord = {0};
 
 void FieldClearPlayerInput(struct FieldInput *input)
 {
@@ -414,7 +414,7 @@ const u8 *GetInteractedLinkPlayerScript(struct MapPosition *position, u8 metatil
     else
         objectEventId = GetObjectEventIdByPosition(position->x + gDirectionToVectors[direction].x, position->y + gDirectionToVectors[direction].y, position->elevation);
 
-    if (objectEventId == OBJECT_EVENTS_COUNT || gObjectEvents[objectEventId].localId == OBJ_EVENT_ID_PLAYER)
+    if (objectEventId == OBJECT_EVENTS_COUNT || gObjectEvents[objectEventId].localId == LOCALID_PLAYER)
         return NULL;
 
     for (i = 0; i < MAX_LINK_PLAYERS; i++)
@@ -435,14 +435,14 @@ static const u8 *GetInteractedObjectEventScript(struct MapPosition *position, u8
     const u8 *script;
 
     objectEventId = GetObjectEventIdByPosition(position->x, position->y, position->elevation);
-    if (objectEventId == OBJECT_EVENTS_COUNT || gObjectEvents[objectEventId].localId == OBJ_EVENT_ID_PLAYER)
+    if (objectEventId == OBJECT_EVENTS_COUNT || gObjectEvents[objectEventId].localId == LOCALID_PLAYER)
     {
         if (MetatileBehavior_IsCounter(metatileBehavior) != TRUE)
             return NULL;
 
         // Look for an object event on the other side of the counter.
         objectEventId = GetObjectEventIdByPosition(position->x + gDirectionToVectors[direction].x, position->y + gDirectionToVectors[direction].y, position->elevation);
-        if (objectEventId == OBJECT_EVENTS_COUNT || gObjectEvents[objectEventId].localId == OBJ_EVENT_ID_PLAYER)
+        if (objectEventId == OBJECT_EVENTS_COUNT || gObjectEvents[objectEventId].localId == LOCALID_PLAYER)
             return NULL;
     }
 
@@ -968,7 +968,7 @@ static void SetupWarp(struct MapHeader *unused, s8 warpEventId, struct MapPositi
 
     warpEvent = &gMapHeader.events->warps[warpEventId];
 
-    if (warpEvent->mapNum == MAP_NUM(DYNAMIC))
+    if (warpEvent->mapNum == MAP_NUM(MAP_DYNAMIC))
     {
         SetWarpDestinationToDynamicWarp(warpEvent->warpId);
     }
@@ -979,7 +979,7 @@ static void SetupWarp(struct MapHeader *unused, s8 warpEventId, struct MapPositi
         SetWarpDestinationToMapWarp(warpEvent->mapGroup, warpEvent->mapNum, warpEvent->warpId);
         UpdateEscapeWarp(position->x, position->y);
         mapHeader = Overworld_GetMapHeaderByGroupAndId(warpEvent->mapGroup, warpEvent->mapNum);
-        if (mapHeader->events->warps[warpEvent->warpId].mapNum == MAP_NUM(DYNAMIC))
+        if (mapHeader->events->warps[warpEvent->warpId].mapNum == MAP_NUM(MAP_DYNAMIC))
             SetDynamicWarp(mapHeader->events->warps[warpEventId].warpId, gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum, warpEventId);
     }
 }

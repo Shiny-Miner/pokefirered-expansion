@@ -227,15 +227,15 @@ EWRAM_DATA u16 gBattleMovePower = 0;
 EWRAM_DATA u16 gMoveToLearn = 0;
 EWRAM_DATA u8 gBattleMonForms[MAX_BATTLERS_COUNT] = {0};
 
-void (*gPreBattleCallback1)(void);
-void (*gBattleMainFunc)(void);
-struct BattleResults gBattleResults;
-u8 gLeveledUpInBattle;
-void (*gBattlerControllerFuncs[MAX_BATTLERS_COUNT])(void);
-u8 gHealthboxSpriteIds[MAX_BATTLERS_COUNT];
-u8 gMultiUsePlayerCursor;
-u8 gNumberOfMovesToChoose;
-u8 gBattleControllerData[MAX_BATTLERS_COUNT];
+COMMON_DATA void (*gPreBattleCallback1)(void) = NULL;
+COMMON_DATA void (*gBattleMainFunc)(void) = NULL;
+COMMON_DATA struct BattleResults gBattleResults = {0};
+COMMON_DATA u8 gLeveledUpInBattle = 0;
+COMMON_DATA void (*gBattlerControllerFuncs[MAX_BATTLERS_COUNT])(void) = {0};
+COMMON_DATA u8 gHealthboxSpriteIds[MAX_BATTLERS_COUNT] = {0};
+COMMON_DATA u8 gMultiUsePlayerCursor = 0;
+COMMON_DATA u8 gNumberOfMovesToChoose = 0;
+COMMON_DATA u8 gBattleControllerData[MAX_BATTLERS_COUNT] = {0};
 
 static const struct ScanlineEffectParams sIntroScanlineParams16Bit =
 {
@@ -1170,7 +1170,11 @@ static void CB2_PreInitMultiBattle(void)
         }
         break;
     case 2:
+#if REVISION >= 0xA
+        if (IsLinkTaskFinished() && !gPaletteFade.active)
+#else
         if (!gPaletteFade.active)
+#endif
         {
             gBattleCommunication[MULTIUSE_STATE]++;
             if (gWirelessCommType)
@@ -4007,8 +4011,8 @@ static void ReturnFromBattleToOverworld(void)
         if (gBattleTypeFlags & BATTLE_TYPE_ROAMER)
         {
             UpdateRoamerHPStatus(&gEnemyParty[0]);
-#ifdef BUGFIX
-            if ((gBattleOutcome == B_OUTCOME_WON) || gBattleOutcome == B_OUTCOME_CAUGHT)
+#if defined(BUGFIX) || REVISION >= 0xA
+            if ((gBattleOutcome == B_OUTCOME_WON) || gBattleOutcome == B_OUTCOME_CAUGHT || gBattleOutcome == B_OUTCOME_DREW)
 #else
             if ((gBattleOutcome & B_OUTCOME_WON) || gBattleOutcome == B_OUTCOME_CAUGHT) // Bug: When Roar is used by roamer, gBattleOutcome is B_OUTCOME_PLAYER_TELEPORTED (5).
 #endif                                                                                  // & with B_OUTCOME_WON (1) will return TRUE and deactivates the roamer.
